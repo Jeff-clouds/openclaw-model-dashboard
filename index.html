@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw 配置管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #343541;
+      min-height: 100vh;
+      color: #ececf1;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #10a37f;
+    }
+    h2 {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #8e8ea0;
+    }
+    .section {
+      background: #202123;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .agent-item {
+      background: #343541;
+      border-radius: 6px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .agent-info {
+      flex: 1;
+    }
+    .agent-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .agent-workspace {
+      font-size: 12px;
+      color: #8e8ea0;
+    }
+    .agent-model {
+      font-size: 14px;
+      color: #10a37f;
+      margin-top: 4px;
+    }
+    .model-select {
+      padding: 8px 12px;
+      background: #40414f;
+      border: 1px solid #565869;
+      color: #ececf1;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+    .model-select:focus {
+      outline: none;
+      border-color: #10a37f;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #10a37f;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #1a7f64;
+    }
+    .btn:disabled {
+      background: #565869;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #40414f;
+      border: 1px solid #565869;
+    }
+    .btn-secondary:hover {
+      background: #565869;
+    }
+    .usage-area {
+      margin-top: 20px;
+    }
+    .usage-result {
+      background: #343541;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .status.success {
+      background: #10a37f;
+      color: #fff;
+    }
+    .status.error {
+      background: #dc3545;
+      color: #fff;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #8e8ea0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 OpenClaw 配置管理</h1>
+
+    <div id="status"></div>
+
+    <!-- Agent 列表 -->
+    <div class="section">
+      <h2>Agent 模型配置</h2>
+      <div id="agentList" class="agent-list">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 用量查询 -->
+    <div class="section">
+      <h2>用量查询</h2>
+      <button class="btn btn-secondary" onclick="fetchUsage()">刷新用量</button>
+      <div class="usage-area">
+        <div id="usageResult" class="usage-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let agents = [];
+    let allModels = [];
+
+    // 加载数据
+    async function loadData() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load agents');
+        agents = data.agents;
+        allModels = data.allModels;
+        renderAgents();
+      } catch (e) {
+        showStatus('加载失败: ' + e.message, 'error');
+      }
+    }
+
+    // 渲染 agent 列表
+    function renderAgents() {
+      const container = document.getElementById('agentList');
+      if (agents.length === 0) {
+        container.innerHTML = '<div style="color:#8e8ea0;">暂无 agent 配置</div>';
+        return;
+      }
+
+      container.innerHTML = agents.map(agent => `
+        <div class="agent-item">
+          <div class="agent-info">
+            <div class="agent-name">${escapeHtml(agent.name)}</div>
+            <div class="agent-workspace">${escapeHtml(agent.workspace)}</div>
+            <div class="agent-model">当前模型: ${escapeHtml(agent.model)}</div>
+          </div>
+          <select class="model-select" id="model-${agent.id}">
+            ${allModels.map(m => `
+              <option value="${escapeHtml(m)}" ${m === agent.model ? 'selected' : ''}>
+                ${escapeHtml(m)}
+              </option>
+            `).join('')}
+          </select>
+          <button class="btn" onclick="updateModel('${agent.id}')">保存</button>
+        </div>
+      `).join('');
+    }
+
+    // 更新模型
+    async function updateModel(agentId) {
+      const select = document.getElementById(`model-${agentId}`);
+      const model = select.value;
+      const btn = select.nextElementSibling;
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+
+      try {
+        const res = await fetch('/api/update-model', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, model })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update model');
+        showStatus(`✅ ${data.message}`, 'success');
+        // 刷新列表以显示新模型
+        setTimeout(loadData, 2000);
+      } catch (e) {
+        showStatus('❌ 更新失败: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '保存';
+      }
+    }
+
+    // 查询用量
+    async function fetchUsage() {
+      const resultDiv = document.getElementById('usageResult');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = '加载中...';
+
+      try {
+        const res = await fetch('/api/usage');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch usage');
+        resultDiv.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        resultDiv.textContent = '❌ 加载失败: ' + e.message;
+      }
+    }
+
+    // 显示状态消息
+    function showStatus(msg, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = msg;
+      statusDiv.className = 'status ' + type;
+      setTimeout(() => {
+        statusDiv.textContent = '';
+        statusDiv.className = 'status';
+      }, 5000);
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 初始化
+    loadData();
+  </script>
+</body>
+</html>

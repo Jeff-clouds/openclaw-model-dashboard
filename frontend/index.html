@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw 模型管理</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 顶部导航 -->
+    <header class="header">
+      <h1>🦞 OpenClaw 模型管理</h1>
+      <p class="subtitle">远程管理 Agent 模型配置</p>
+    </header>
+
+    <!-- 加载状态 -->
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="error" class="error-message" style="display: none;"></div>
+
+    <!-- 主内容 -->
+    <main id="main" style="display: none;">
+      <!-- Agent 列表 -->
+      <section class="section">
+        <h2 class="section-title">📋 Agent 列表</h2>
+        <div id="agentList" class="agent-list"></div>
+      </section>
+
+      <!-- 模型切换面板 -->
+      <section id="switchPanel" class="section switch-panel" style="display: none;">
+        <h2 class="section-title">🔄 切换模型</h2>
+        <div class="switch-content">
+          <div class="agent-info">
+            <span class="agent-name" id="switchAgentName"></span>
+            <span class="agent-current-model" id="switchCurrentModel"></span>
+          </div>
+          
+          <div class="model-selector">
+            <label for="modelSelect">选择新模型：</label>
+            <select id="modelSelect"></select>
+          </div>
+          
+          <div class="switch-actions">
+            <button class="btn btn-primary" onclick="switchModel()">确认切换</button>
+            <button class="btn btn-secondary" onclick="cancelSwitch()">取消</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 可用模型列表 -->
+      <section class="section">
+        <h2 class="section-title">🎯 可用模型</h2>
+        <div id="modelList" class="model-list"></div>
+      </section>
+    </main>
+
+    <!-- 底部信息 -->
+    <footer class="footer">
+      <p>OpenClaw Model Manager v1.0.0</p>
+    </footer>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
