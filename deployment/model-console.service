@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenClaw Model Console - 模型管理 Web 界面
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/.openclaw/webchat/backend
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=10
+StandardOutput=append:/root/.openclaw/webchat/backend/console.log
+StandardError=append:/root/.openclaw/webchat/backend/console.log
+
+[Install]
+WantedBy=multi-user.target

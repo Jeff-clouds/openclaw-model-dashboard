@@ -40,12 +40,44 @@ chmod +x start.sh
 
 访问：http://localhost:8080
 
-### 方式二：Systemd 服务（长期运行）
+### 方式二：Systemd 服务（长期运行）⭐
 
+**安装并启用开机自启**：
 ```bash
-cd /root/.openclaw/webchat/deployment
-chmod +x install.sh
-sudo ./install.sh
+# 复制服务配置
+sudo cp /root/.openclaw/webchat/deployment/model-console.service /etc/systemd/system/
+
+# 重载 systemd
+sudo systemctl daemon-reload
+
+# 启用开机自启
+sudo systemctl enable model-console
+
+# 启动服务
+sudo systemctl start model-console
+
+# 查看状态
+sudo systemctl status model-console
+```
+
+访问：http://你的服务器 IP:8080
+
+**常用命令**：
+```bash
+# 启动
+sudo systemctl start model-console
+
+# 停止
+sudo systemctl stop model-console
+
+# 重启（修改代码后）
+sudo systemctl restart model-console
+
+# 查看日志
+sudo journalctl -u model-console -f
+
+# 禁用开机自启
+sudo systemctl disable model-console
 ```
 
 访问：http://你的服务器 IP:8080
