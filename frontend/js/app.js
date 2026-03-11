@@ -98,23 +98,51 @@ function renderModels() {
     return;
   }
   
+  // 按 Provider 分组
+  const groupedModels = {};
   models.forEach(model => {
-    const item = document.createElement('div');
-    item.className = 'model-item';
+    const provider = model.provider || 'other';
+    if (!groupedModels[provider]) {
+      groupedModels[provider] = [];
+    }
+    groupedModels[provider].push(model);
+  });
+  
+  // 渲染每个 Provider 的模型
+  Object.keys(groupedModels).sort().forEach(provider => {
+    const providerModels = groupedModels[provider];
     
-    const tags = model.tags || [];
-    const tagsHtml = tags.map(tag => `<span class="model-tag">${tag}</span>`).join('');
+    // Provider 标题
+    const providerTitle = document.createElement('div');
+    providerTitle.className = 'provider-title';
+    providerTitle.innerHTML = `<strong>${provider}</strong> (${providerModels.length}个模型)`;
+    providerTitle.style.cssText = 'margin:16px 0 8px 0;padding:8px;background:#e8e8ff;border-radius:6px;font-size:14px;color:#667eea;';
+    container.appendChild(providerTitle);
     
-    item.innerHTML = `
-      <div class="model-name">${model.name}</div>
-      <div class="model-info">
-        ${model.input ? '输入：' + model.input : ''}
-        ${model.contextWindow ? ' | 上下文：' + (model.contextWindow / 1000).toFixed(0) + 'K' : ''}
-      </div>
-      ${tagsHtml}
-    `;
+    // 模型网格
+    const grid = document.createElement('div');
+    grid.className = 'model-list';
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px;';
     
-    container.appendChild(item);
+    providerModels.forEach(model => {
+      const item = document.createElement('div');
+      item.className = 'model-item';
+      
+      const tags = model.tags || [];
+      const tagsHtml = tags.map(tag => `<span class="model-tag">${tag}</span>`).join('');
+      
+      item.innerHTML = `
+        <div class="model-name">${model.name}</div>
+        <div class="model-info">
+          ${model.contextWindow ? '上下文：' + (model.contextWindow / 1000).toFixed(0) + 'K' : ''}
+        </div>
+        ${tagsHtml}
+      `;
+      
+      grid.appendChild(item);
+    });
+    
+    container.appendChild(grid);
   });
 }
 
@@ -134,16 +162,35 @@ function showSwitchPanel(agent) {
   agentNameEl.textContent = name;
   currentModelEl.textContent = `当前：${agent.model || '未设置'}`;
   
-  // 填充模型选择器
+  // 填充模型选择器（按 Provider 分组显示）
   modelSelect.innerHTML = '';
+  
+  // 按 Provider 分组
+  const groupedModels = {};
   models.forEach(model => {
-    const option = document.createElement('option');
-    option.value = model.key;
-    option.textContent = model.name;
-    if (model.key === agent.model) {
-      option.selected = true;
+    const provider = model.provider || 'other';
+    if (!groupedModels[provider]) {
+      groupedModels[provider] = [];
     }
-    modelSelect.appendChild(option);
+    groupedModels[provider].push(model);
+  });
+  
+  // 添加选项（分组显示）
+  Object.keys(groupedModels).sort().forEach(provider => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `${provider} (${groupedModels[provider].length})`;
+    
+    groupedModels[provider].forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.key;
+      option.textContent = model.name;
+      if (model.key === agent.model) {
+        option.selected = true;
+      }
+      optgroup.appendChild(option);
+    });
+    
+    modelSelect.appendChild(optgroup);
   });
   
   // 显示面板
