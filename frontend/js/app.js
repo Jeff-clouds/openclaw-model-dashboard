@@ -108,21 +108,27 @@ function renderModels() {
     groupedModels[provider].push(model);
   });
   
+  // 存储 provider 展开状态
+  window.providerExpanded = window.providerExpanded || {};
+  
   // 渲染每个 Provider 的模型
   Object.keys(groupedModels).sort().forEach(provider => {
     const providerModels = groupedModels[provider];
+    const isExpanded = window.providerExpanded[provider] !== false; // 默认展开
     
     // Provider 标题
     const providerTitle = document.createElement('div');
     providerTitle.className = 'provider-title';
-    providerTitle.innerHTML = `<strong>${provider}</strong> (${providerModels.length}个模型)`;
-    providerTitle.style.cssText = 'margin:16px 0 8px 0;padding:8px;background:#e8e8ff;border-radius:6px;font-size:14px;color:#667eea;';
+    providerTitle.style.cssText = 'margin:16px 0 8px 0;padding:8px;background:#e8e8ff;border-radius:6px;font-size:14px;color:#667eea;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;';
+    providerTitle.innerHTML = `<span class="arrow" style="font-size:12px;transition:transform 0.2s;">${isExpanded ? '▼' : '▶'}</span><strong>${provider}</strong> (${providerModels.length}个模型)`;
+    providerTitle.onclick = () => toggleProvider(provider, providerTitle, grid);
     container.appendChild(providerTitle);
     
     // 模型网格
     const grid = document.createElement('div');
     grid.className = 'model-list';
-    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px;';
+    grid.setAttribute('data-provider', provider);
+    grid.style.cssText = `display:${isExpanded ? 'grid' : 'none'};grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px;`;
     
     providerModels.forEach(model => {
       const item = document.createElement('div');
@@ -144,6 +150,21 @@ function renderModels() {
     
     container.appendChild(grid);
   });
+}
+
+/**
+ * 切换 Provider 展开/收起
+ */
+function toggleProvider(provider, titleEl, gridEl) {
+  const isExpanded = window.providerExpanded[provider] !== false;
+  window.providerExpanded[provider] = !isExpanded;
+  
+  // 切换箭头
+  const arrow = titleEl.querySelector('.arrow');
+  arrow.textContent = !isExpanded ? '▼' : '▶';
+  
+  // 切换 grid 显示
+  gridEl.style.display = !isExpanded ? 'grid' : 'none';
 }
 
 /**
