@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenClaw 模型管理</title>
-  <link rel="stylesheet" href="css/style.css">
-  <script src="js/app.js?v=20260311"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="container">
+  <div class="app-shell">
     <!-- 顶部导航 -->
-    <header class="header">
-      <h1>🦞 OpenClaw 模型管理</h1>
-      <p class="subtitle">远程管理 Agent 模型配置</p>
-      <button class="btn btn-danger restart-btn" onclick="restartGateway()">🔄 重启 Gateway</button>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🦞</span>
+        <div class="brand-text">
+          <h1>OpenClaw 模型管理</h1>
+          <span class="subtitle">远程管理 Agent 模型配置</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="themeToggle" class="btn btn-ghost" aria-label="切换主题">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="btn btn-warning" onclick="restartGateway()">
+          🔄 重启 Gateway
+        </button>
+      </div>
     </header>
 
     <!-- 加载状态 -->
@@ -23,51 +35,79 @@
     </div>
 
     <!-- 错误提示 -->
-    <div id="error" class="error-message" style="display: none;"></div>
+    <div id="error" class="alert alert-error" style="display:none;"></div>
 
     <!-- 主内容 -->
-    <main id="main" style="display: none;">
+    <main id="main" class="container" style="display:none;">
       <!-- Agent 列表 -->
-      <section class="section">
-        <h2 class="section-title">📋 Agent 列表</h2>
+      <section class="section-card">
+        <div class="section-head">
+          <h2 class="section-title">
+            🤖 Agent 列表
+          </h2>
+        </div>
         <div id="agentList" class="agent-list"></div>
       </section>
 
       <!-- 模型切换面板 -->
-      <section id="switchPanel" class="section switch-panel" style="display: none;">
-        <h2 class="section-title">🔄 切换模型</h2>
+      <section id="switchPanel" class="section-card switch-panel" style="display:none;">
+        <div class="section-head">
+          <h2 class="section-title">
+            🔄 切换模型
+          </h2>
+        </div>
         <div class="switch-content">
-          <div class="agent-info">
-            <span class="agent-name" id="switchAgentName"></span>
-            <span class="agent-current-model" id="switchCurrentModel"></span>
+          <div class="agent-info-banner">
+            <div class="info-line">
+              <span class="agent-name-display" id="switchAgentName"></span>
+            </div>
+            <div class="info-line">
+              <span class="label">当前模型</span>
+              <span class="value" id="switchCurrentModel"></span>
+            </div>
           </div>
-          
-          <div class="model-selector">
-            <label for="modelSelect">选择新模型：</label>
+
+          <div class="field-group">
+            <label for="modelSelect">选择新模型</label>
             <select id="modelSelect"></select>
           </div>
-          
+
           <div class="switch-actions">
-            <button class="btn btn-primary" onclick="switchModel()">确认切换</button>
-            <button class="btn btn-secondary" onclick="cancelSwitch()">取消</button>
+            <button class="btn btn-primary" onclick="switchModel()">
+              <i class="fas fa-check"></i> 确认切换
+            </button>
+            <button class="btn btn-secondary" onclick="cancelSwitch()">
+              <i class="fas fa-xmark"></i> 取消
+            </button>
           </div>
         </div>
       </section>
 
       <!-- 可用模型列表 -->
-      <section class="section">
-        <h2 class="section-title">🎯 可用模型</h2>
+      <section class="section-card">
+        <div class="section-head">
+          <h2 class="section-title">🎯 可用模型</h2>
+          <div class="section-tools">
+            <span id="modelCount" class="muted"></span>
+          </div>
+        </div>
         <div id="modelList" class="model-list"></div>
       </section>
 
       <!-- 会话模型查看 -->
-      <section class="section">
-        <h2 class="section-title">📊 活跃会话模型</h2>
-        <div id="sessionsPanel">
-          <div class="sessions-header">
-            <span id="sessionsCount">加载中...</span>
-            <button class="btn btn-secondary" onclick="loadSessionsModels()">🔄 刷新</button>
+      <section class="section-card">
+        <div class="section-head">
+          <h2 class="section-title">
+            📊 活跃会话模型
+          </h2>
+          <div class="section-tools">
+            <span id="sessionsCount" class="muted">加载中...</span>
+            <button class="btn btn-secondary" onclick="loadSessionsModels()">
+              <i class="fas fa-rotate"></i> 刷新
+            </button>
           </div>
+        </div>
+        <div id="sessionsPanel">
           <div id="sessionsList" class="sessions-list"></div>
           <div id="modelDistribution" class="model-distribution"></div>
         </div>
@@ -76,10 +116,12 @@
 
     <!-- 底部信息 -->
     <footer class="footer">
-      <p>OpenClaw Model Manager v1.0.0</p>
+      <p>© 2026 OpenClaw Model Manager · v1.0.0</p>
     </footer>
+
+    <!-- 底部浮动保存栏（由 JS 注入） -->
   </div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260315"></script>
 </body>
 </html>

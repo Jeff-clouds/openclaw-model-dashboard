@@ -13,6 +13,27 @@ let currentSwitchAgent = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+  // 主题切换持久化
+  try {
+    const saved = localStorage.getItem('oc-theme');
+    if (saved === 'dark' || saved === 'light') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (e) {}
+
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'light';
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      try { localStorage.setItem('oc-theme', next); } catch (e) {}
+      // 切换图标
+      toggle.innerHTML = next === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    });
+  }
+
   await loadData();
 });
 
@@ -188,7 +209,8 @@ function renderAgents() {
     item.className = 'agent-item';
     
     const emoji = agent.identityEmoji || agent.emoji || '🤖';
-    const name = agent.identityName || agent.name || agent.id;
+    // 优先使用 openclaw.json 中的 name，其次是 identityName，最后是 id
+    const name = agent.name || agent.identityName || agent.id;
     const currentModel = agent.model || '未设置';
     
     // 检查是否有待保存的变更
@@ -221,16 +243,20 @@ function renderAgents() {
       <div class="agent-info">
         <span class="agent-emoji">${emoji}</span>
         <div class="agent-details">
-          <span class="agent-name">${name}</span>
-          <span class="agent-meta">
-            <span class="agent-code-name">${codeName}</span>
-            <span class="agent-workspace">📁 ${workspaceName}</span>
-          </span>
-          <span class="agent-model-label">模型：${displayModel} ${hasChange ? '<span class="change-indicator">●</span>' : ''}</span>
+          <div class="agent-name-row">
+            <span class="agent-name">${name}</span>
+            <span class="agent-meta">
+              <span class="agent-code-name">${codeName}</span>
+              <span class="agent-workspace">📁 ${workspaceName}</span>
+            </span>
+          </div>
+          <div class="agent-model-row">
+            <span class="agent-model-label">模型：${displayModel} ${hasChange ? '<span class="change-indicator">●</span>' : ''}</span>
+            <div class="agent-model-select-wrapper">
+              ${modelSelectHtml}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="agent-model-select-wrapper">
-        ${modelSelectHtml}
       </div>
     `;
     
@@ -264,26 +290,25 @@ function onAgentModelChange(select) {
 function renderSaveButton() {
   const container = document.getElementById('agentList');
   const changeCount = Object.keys(window.pendingModelChanges).length;
-  
-  // 移除旧的保存按钮
-  const oldSaveBtn = document.getElementById('saveAllModelsBtn');
-  if (oldSaveBtn) {
-    oldSaveBtn.remove();
-  }
-  
+
+  // 移除旧的保存栏
+  const old = document.getElementById('saveAllModelsBtn');
+  if (old) old.remove();
+
   if (changeCount > 0) {
-    const saveBtn = document.createElement('div');
-    saveBtn.id = 'saveAllModelsBtn';
-    saveBtn.style.cssText = 'margin-top:16px;padding:16px;background:#f0f0ff;border-radius:8px;text-align:center;';
-    saveBtn.innerHTML = `
-      <div style="margin-bottom:12px;color:#667eea;font-weight:600;">
-        已选择 ${changeCount} 个 Agent 的模型变更
+    const bar = document.createElement('div');
+    bar.id = 'saveAllModelsBtn';
+    bar.className = 'floating-savebar';
+    bar.innerHTML = `
+      <div class="savebar-text">
+        <span class="dot"></span>
+        已选择 <strong>${changeCount}</strong> 个 Agent 的模型变更
       </div>
-      <button class="btn btn-primary" onclick="saveAllModelChanges()" style="width:100%;">
-        💾 保存所有变更
+      <button class="btn btn-primary" onclick="saveAllModelChanges()">
+        <i class="fa-solid fa-floppy-disk"></i> 保存所有变更
       </button>
     `;
-    container.appendChild(saveBtn);
+    document.body.appendChild(bar);
   }
 }
 
@@ -303,7 +328,7 @@ async function saveAllModelChanges() {
   const saveBtn = document.querySelector('#saveAllModelsBtn .btn-primary');
   if (saveBtn) {
     saveBtn.disabled = true;
-    saveBtn.textContent = '保存中...';
+    saveBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 保存中...';
   }
   
   const results = [];
@@ -342,7 +367,8 @@ async function saveAllModelChanges() {
   if (errors.length === 0) {
     showSuccess(`✅ 成功保存 ${results.length} 个变更！`);
   } else {
-    alert(`⚠️ 部分保存失败\n\n成功：${results.length} 个\n失败：${errors.length} 个\n\n${errors.join('\n')}`);
+    showError(`部分保存失败。成功：${results.length} 个；失败：${errors.length} 个。`);
+    console.warn('保存失败详情：', errors);
   }
 }
 
@@ -373,16 +399,27 @@ function renderModels() {
   // 存储 provider 展开状态
   window.providerExpanded = window.providerExpanded || {};
   
-  // 添加全局展开/收起按钮
+  // 添加全局展开/收起按钮到 section-tools
   const allExpanded = Object.values(window.providerExpanded).every(v => v !== false);
-  const headerDiv = document.createElement('div');
-  headerDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px;';
-  headerDiv.innerHTML = `
-    <button class="btn btn-secondary" onclick="toggleAllProviders(${allExpanded ? 'false' : 'true'})">
-      ${allExpanded ? '📥 全部收起' : '📤 全部展开'}
-    </button>
-  `;
-  container.appendChild(headerDiv);
+  const modelCount = document.getElementById('modelCount');
+  if (modelCount) {
+    modelCount.textContent = `${models.length} 个模型`;
+  }
+  const toolsDiv = document.querySelector('.model-list ~ .section-tools, #modelList .section-tools');
+  const existingBtn = document.querySelector('#modelList + .section-tools button');
+  if (!existingBtn) {
+    const headerDiv = document.createElement('div');
+    headerDiv.innerHTML = `
+      <button class="btn btn-secondary" onclick="toggleAllProviders(${allExpanded ? 'false' : 'true'})">
+        ${allExpanded ? '📥 全部收起' : '📤 全部展开'}
+      </button>
+    `;
+    const toolsContainer = document.querySelector('.section-card:nth-of-type(3) .section-tools');
+    if (toolsContainer && !toolsContainer.querySelector('button')) {
+      toolsContainer.appendChild(headerDiv.firstElementChild);
+    }
+  }
+  container.style.marginTop = '0';
   
   // 渲染每个 Provider 的模型
   Object.keys(groupedModels).sort().forEach(provider => {
@@ -392,8 +429,7 @@ function renderModels() {
     // Provider 标题
     const providerTitle = document.createElement('div');
     providerTitle.className = 'provider-title';
-    providerTitle.style.cssText = 'margin:16px 0 8px 0;padding:8px;background:#e8e8ff;border-radius:6px;font-size:14px;color:#667eea;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;';
-    providerTitle.innerHTML = `<span class="arrow" style="font-size:12px;transition:transform 0.2s;">${isExpanded ? '▼' : '▶'}</span><strong>${provider}</strong> (${providerModels.length}个模型)`;
+    providerTitle.innerHTML = `<span class="arrow">${isExpanded ? '▼' : '▶'}</span><strong>${provider}</strong> (${providerModels.length}个模型)`;
     providerTitle.onclick = () => toggleProvider(provider, providerTitle, grid);
     container.appendChild(providerTitle);
     
@@ -401,7 +437,7 @@ function renderModels() {
     const grid = document.createElement('div');
     grid.className = 'model-list';
     grid.setAttribute('data-provider', provider);
-    grid.style.cssText = `display:${isExpanded ? 'grid' : 'none'};grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px;`;
+    grid.style.display = isExpanded ? 'grid' : 'none';
     
     providerModels.forEach(model => {
       const item = document.createElement('div');
@@ -595,6 +631,7 @@ function showMain() {
 function showError(message) {
   document.getElementById('loading').style.display = 'none';
   const errorEl = document.getElementById('error');
+  errorEl.className = 'alert alert-error';
   errorEl.textContent = '❌ ' + message;
   errorEl.style.display = 'block';
 }
@@ -604,16 +641,14 @@ function showError(message) {
  */
 function showSuccess(message) {
   const successEl = document.createElement('div');
-  successEl.className = 'success-message';
+  successEl.className = 'alert alert-success';
   successEl.textContent = message;
-  
+
   const main = document.getElementById('main');
-  main.insertBefore(successEl, main.firstChild);
-  
+  main.parentNode.insertBefore(successEl, main);
+
   // 3 秒后自动消失
-  setTimeout(() => {
-    successEl.remove();
-  }, 3000);
+  setTimeout(() => { successEl.remove(); }, 3000);
 }
 
 /**
