@@ -122,13 +122,8 @@ function renderSessionsList(sessions) {
     return;
   }
   
-  // 按 Agent 分组排序
-  const sortedSessions = sessions.sort((a, b) => {
-    if (a.agent !== b.agent) return a.agent.localeCompare(b.agent);
-    return a.kind.localeCompare(b.kind);
-  });
-  
-  sortedSessions.forEach(session => {
+  // 保持后端返回的时间顺序（从新到旧），不重新排序
+  sessions.forEach(session => {
     const item = document.createElement('div');
     item.className = 'session-item';
     

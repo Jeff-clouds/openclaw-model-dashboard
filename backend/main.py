@@ -323,9 +323,17 @@ def get_sessions_models(max_age_hours: int = 24):
                 "model": model,
                 "session_id": session_id,
                 "age": age_str,
+                "age_minutes": age_minutes,
                 "channel": "unknown",
                 "display_name": key
             })
+        
+        # 按时间排序（从新到旧，即 age_minutes 从小到大）
+        model_info.sort(key=lambda x: x.get('age_minutes', 999999))
+        
+        # 移除用于排序的临时字段
+        for item in model_info:
+            item.pop('age_minutes', None)
         
         # 统计模型分布
         from collections import Counter
