@@ -158,8 +158,11 @@ function renderModelDistribution(distribution) {
   `;
 }
 
+// 存储待保存的模型变更
+window.pendingModelChanges = {};
+
 /**
- * 渲染 Agent 列表
+ * 渲染 Agent 列表（带模型选择下拉框）
  */
 function renderAgents() {
   const container = document.getElementById('agentList');
@@ -170,29 +173,169 @@ function renderAgents() {
     return;
   }
   
+  // 按 Provider 分组模型（用于下拉框）
+  const groupedModels = {};
+  models.forEach(model => {
+    const provider = model.provider || 'other';
+    if (!groupedModels[provider]) {
+      groupedModels[provider] = [];
+    }
+    groupedModels[provider].push(model);
+  });
+  
   agents.forEach(agent => {
     const item = document.createElement('div');
     item.className = 'agent-item';
-    item.onclick = () => showSwitchPanel(agent);
     
     const emoji = agent.identityEmoji || agent.emoji || '🤖';
     const name = agent.identityName || agent.name || agent.id;
-    const model = agent.model || '未设置';
+    const currentModel = agent.model || '未设置';
+    
+    // 检查是否有待保存的变更
+    const pendingModel = window.pendingModelChanges[agent.id];
+    const displayModel = pendingModel || currentModel;
+    const hasChange = pendingModel && pendingModel !== currentModel;
+    
+    // 创建模型选择下拉框
+    let modelSelectHtml = `<select class="agent-model-select" data-agent-id="${agent.id}" onchange="onAgentModelChange(this)">`;
+    modelSelectHtml += `<option value="">${currentModel}</option>`;
+    
+    Object.keys(groupedModels).sort().forEach(provider => {
+      modelSelectHtml += `<optgroup label="${provider}">`;
+      groupedModels[provider].forEach(model => {
+        const selected = pendingModel === model.key ? 'selected' : '';
+        modelSelectHtml += `<option value="${model.key}" ${selected}>${model.name}</option>`;
+      });
+      modelSelectHtml += `</optgroup>`;
+    });
+    modelSelectHtml += `</select>`;
     
     item.innerHTML = `
       <div class="agent-info">
         <span class="agent-emoji">${emoji}</span>
         <div class="agent-details">
           <span class="agent-name">${name}</span>
-          <span class="agent-model">当前模型：${model}</span>
+          <span class="agent-model-label">模型：${displayModel} ${hasChange ? '<span class="change-indicator">●</span>' : ''}</span>
         </div>
       </div>
-      <span class="agent-status">运行中</span>
+      <div class="agent-model-select-wrapper">
+        ${modelSelectHtml}
+      </div>
     `;
     
     container.appendChild(item);
   });
+  
+  // 添加统一保存按钮
+  renderSaveButton();
 }
+
+/**
+ * Agent 模型变更处理
+ */
+function onAgentModelChange(select) {
+  const agentId = select.dataset.agentId;
+  const newModel = select.value;
+  
+  if (newModel) {
+    window.pendingModelChanges[agentId] = newModel;
+  } else {
+    delete window.pendingModelChanges[agentId];
+  }
+  
+  // 重新渲染以显示变更标记
+  renderAgents();
+}
+
+/**
+ * 渲染统一保存按钮
+ */
+function renderSaveButton() {
+  const container = document.getElementById('agentList');
+  const changeCount = Object.keys(window.pendingModelChanges).length;
+  
+  // 移除旧的保存按钮
+  const oldSaveBtn = document.getElementById('saveAllModelsBtn');
+  if (oldSaveBtn) {
+    oldSaveBtn.remove();
+  }
+  
+  if (changeCount > 0) {
+    const saveBtn = document.createElement('div');
+    saveBtn.id = 'saveAllModelsBtn';
+    saveBtn.style.cssText = 'margin-top:16px;padding:16px;background:#f0f0ff;border-radius:8px;text-align:center;';
+    saveBtn.innerHTML = `
+      <div style="margin-bottom:12px;color:#667eea;font-weight:600;">
+        已选择 ${changeCount} 个 Agent 的模型变更
+      </div>
+      <button class="btn btn-primary" onclick="saveAllModelChanges()" style="width:100%;">
+        💾 保存所有变更
+      </button>
+    `;
+    container.appendChild(saveBtn);
+  }
+}
+
+/**
+ * 保存所有模型变更
+ */
+async function saveAllModelChanges() {
+  const changes = window.pendingModelChanges;
+  const changeCount = Object.keys(changes).length;
+  
+  if (changeCount === 0) {
+    alert('没有待保存的变更');
+    return;
+  }
+  
+  // 显示加载状态
+  const saveBtn = document.querySelector('#saveAllModelsBtn .btn-primary');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+  }
+  
+  const results = [];
+  const errors = [];
+  
+  // 逐个保存变更
+  for (const [agentId, modelId] of Object.entries(changes)) {
+    try {
+      const response = await fetch(`${API_BASE}/api/agents/${agentId}/model`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ modelId: modelId })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.code === 0) {
+        results.push(`${agentId}: ${result.data.previous_model} → ${result.data.new_model}`);
+      } else {
+        errors.push(`${agentId}: ${result.message || '保存失败'}`);
+      }
+    } catch (error) {
+      errors.push(`${agentId}: ${error.message}`);
+    }
+  }
+  
+  // 清空待保存变更
+  window.pendingModelChanges = {};
+  
+  // 重新加载数据
+  await loadData();
+  
+  // 显示结果
+  if (errors.length === 0) {
+    showSuccess(`✅ 成功保存 ${results.length} 个变更！`);
+  } else {
+    alert(`⚠️ 部分保存失败\n\n成功：${results.length} 个\n失败：${errors.length} 个\n\n${errors.join('\n')}`);
+  }
+}
+
+
 
 /**
  * 渲染模型列表
