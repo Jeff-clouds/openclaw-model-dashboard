@@ -239,6 +239,25 @@ body {
   background: #e0e0e0;
 }
 
+/* 危险按钮（重启） */
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
+}
+
+/* 重启按钮位置 */
+.restart-btn {
+  margin-top: 12px;
+  padding: 10px 24px;
+  font-size: 14px;
+}
+
 /* 加载动画 */
 .loading {
   text-align: center;
@@ -290,6 +309,111 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 会话模型列表 */
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+#sessionsCount {
+  font-size: 14px;
+  color: #666;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  transition: all 0.2s ease;
+}
+
+.session-item:hover {
+  background: #f0f0ff;
+  transform: translateX(2px);
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-agent {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.session-meta {
+  font-size: 12px;
+  color: #888;
+}
+
+.session-model {
+  font-size: 13px;
+  padding: 4px 10px;
+  background: #667eea;
+  color: white;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.model-distribution {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.model-distribution h3 {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.distribution-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.distribution-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #e8e8ff;
+  border-radius: 16px;
+  font-size: 13px;
+}
+
+.distribution-item .model-name {
+  font-weight: 500;
+  color: #667eea;
+}
+
+.distribution-item .model-count {
+  background: #667eea;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
 }
 
 /* 底部 */

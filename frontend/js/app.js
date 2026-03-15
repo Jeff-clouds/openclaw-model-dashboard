@@ -23,7 +23,7 @@ async function loadData() {
   showLoading();
   
   try {
-    // 并行加载 Agent 和模型列表
+    // 并行加载 Agent、模型列表和会话模型信息
     const [agentsRes, modelsRes] = await Promise.all([
       fetch(`${API_BASE}/api/agents`),
       fetch(`${API_BASE}/api/models`)
@@ -43,11 +43,119 @@ async function loadData() {
     
     renderAgents();
     renderModels();
+    
+    // 加载会话模型信息（不阻塞主页面显示）
+    loadSessionsModels();
+    
     showMain();
     
   } catch (error) {
     showError(error.message);
   }
+}
+
+/**
+ * 加载会话模型信息
+ */
+async function loadSessionsModels() {
+  const countEl = document.getElementById('sessionsCount');
+  const listEl = document.getElementById('sessionsList');
+  const distEl = document.getElementById('modelDistribution');
+  
+  countEl.textContent = '加载中...';
+  listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">加载中...</div>';
+  
+  try {
+    const response = await fetch(`${API_BASE}/api/sessions/models`);
+    if (!response.ok) throw new Error('获取会话模型信息失败');
+    
+    const data = await response.json();
+    if (data.code !== 0) throw new Error(data.message);
+    
+    const { total, sessions, model_distribution } = data.data;
+    
+    // 更新统计
+    countEl.textContent = `共 ${total} 个活跃会话（24小时内）`;
+    
+    // 渲染会话列表
+    renderSessionsList(sessions);
+    
+    // 渲染模型分布
+    renderModelDistribution(model_distribution);
+    
+  } catch (error) {
+    countEl.textContent = '加载失败';
+    listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#e74c3c;">❌ ${error.message}</div>`;
+  }
+}
+
+/**
+ * 渲染会话列表
+ */
+function renderSessionsList(sessions) {
+  const container = document.getElementById('sessionsList');
+  container.innerHTML = '';
+  
+  if (sessions.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">暂无活跃会话（24小时内）</div>';
+    return;
+  }
+  
+  // 按 Agent 分组排序
+  const sortedSessions = sessions.sort((a, b) => {
+    if (a.agent !== b.agent) return a.agent.localeCompare(b.agent);
+    return a.kind.localeCompare(b.kind);
+  });
+  
+  sortedSessions.forEach(session => {
+    const item = document.createElement('div');
+    item.className = 'session-item';
+    
+    // 格式化 kind 显示
+    const kindMap = {
+      'group': '群聊',
+      'other': '其他',
+      'direct': '私聊'
+    };
+    const kindText = kindMap[session.kind] || session.kind;
+    
+    // 显示年龄信息
+    const ageText = session.age ? ` · ${session.age}前` : '';
+    
+    item.innerHTML = `
+      <div class="session-info">
+        <span class="session-agent">${session.agent}</span>
+        <span class="session-meta">${kindText}${ageText} · ${session.session_id}</span>
+      </div>
+      <span class="session-model">${session.model}</span>
+    `;
+    
+    container.appendChild(item);
+  });
+}
+
+/**
+ * 渲染模型分布统计
+ */
+function renderModelDistribution(distribution) {
+  const container = document.getElementById('modelDistribution');
+  
+  // 按使用数量排序
+  const sorted = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
+  
+  const itemsHtml = sorted.map(([model, count]) => `
+    <div class="distribution-item">
+      <span class="model-name">${model}</span>
+      <span class="model-count">${count}</span>
+    </div>
+  `).join('');
+  
+  container.innerHTML = `
+    <h3>📈 模型分布</h3>
+    <div class="distribution-list">
+      ${itemsHtml}
+    </div>
+  `;
 }
 
 /**
@@ -317,4 +425,35 @@ function showSuccess(message) {
   setTimeout(() => {
     successEl.remove();
   }, 3000);
+}
+
+/**
+ * 重启 Gateway
+ */
+async function restartGateway() {
+  // 确认对话框
+  if (!confirm('确定要重启 OpenClaw Gateway 吗？\n\n重启期间服务将暂时不可用。')) {
+    return;
+  }
+  
+  showLoading();
+  
+  try {
+    const response = await fetch(`${API_BASE}/api/restart-gateway`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+    
+    if (data.code === 0) {
+      showSuccess('✅ Gateway 重启成功！新配置已生效');
+    } else {
+      showError(data.message || '重启失败');
+    }
+  } catch (error) {
+    showError('重启请求失败: ' + error.message);
+  } finally {
+    showMain();
+  }
 }

@@ -13,6 +13,7 @@
     <header class="header">
       <h1>🦞 OpenClaw 模型管理</h1>
       <p class="subtitle">远程管理 Agent 模型配置</p>
+      <button class="btn btn-danger restart-btn" onclick="restartGateway()">🔄 重启 Gateway</button>
     </header>
 
     <!-- 加载状态 -->
@@ -57,6 +58,19 @@
       <section class="section">
         <h2 class="section-title">🎯 可用模型</h2>
         <div id="modelList" class="model-list"></div>
+      </section>
+
+      <!-- 会话模型查看 -->
+      <section class="section">
+        <h2 class="section-title">📊 活跃会话模型</h2>
+        <div id="sessionsPanel">
+          <div class="sessions-header">
+            <span id="sessionsCount">加载中...</span>
+            <button class="btn btn-secondary" onclick="loadSessionsModels()">🔄 刷新</button>
+          </div>
+          <div id="sessionsList" class="sessions-list"></div>
+          <div id="modelDistribution" class="model-distribution"></div>
+        </div>
       </section>
     </main>
 

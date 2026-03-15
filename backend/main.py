@@ -220,6 +220,170 @@ def get_config_info():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def parse_age_to_minutes(age_str):
+    """将年龄字符串转换为分钟数，用于过滤不活跃会话"""
+    try:
+        # 处理格式: 3m, 43m, 11h, 4d, 7d
+        if age_str.endswith('m'):
+            return int(age_str[:-1])
+        elif age_str.endswith('h'):
+            return int(age_str[:-1]) * 60
+        elif age_str.endswith('d'):
+            return int(age_str[:-1]) * 60 * 24
+        elif age_str == 'now':
+            return 0
+        else:
+            return float('inf')  # 未知格式视为不活跃
+    except:
+        return float('inf')
+
+
+@app.get("/api/sessions/models")
+def get_sessions_models(max_age_hours: int = 24):
+    """
+    获取当前活跃会话使用的模型信息
+    通过调用 openclaw sessions 命令获取会话数据（文本格式解析）
+    
+    参数:
+        max_age_hours: 最大活跃时间（小时），超过此时间的会话将被过滤，默认24小时
+    """
+    try:
+        # 调用 openclaw sessions 命令获取所有 agent 的会话列表
+        result = subprocess.run(
+            ["openclaw", "sessions", "--all-agents"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"CLI error: {result.stderr}")
+        
+        # 解析文本输出
+        lines = result.stdout.strip().split('\n')
+        model_info = []
+        max_age_minutes = max_age_hours * 60
+        
+        # 跳过前2行（Session stores 和 Sessions listed 行）和表头行
+        # 找到表头行（包含 "Agent" "Kind" "Key" 等）
+        start_idx = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith('Agent') and 'Kind' in line and 'Key' in line:
+                start_idx = i + 1
+                break
+        
+        for line in lines[start_idx:]:
+            if not line.strip() or line.startswith('Session store:'):
+                continue
+            
+            # 解析行格式: Agent kind key age ago model tokens flags
+            # 示例: coding group agent:coding:fei...455a20 1m ago kimi-k2.5 unknown/200k (?%) system id:xxx
+            parts = line.split()
+            if len(parts) < 6:
+                continue
+            
+            agent_name = parts[0]
+            kind = parts[1]
+            key = parts[2]
+            
+            # 提取年龄（第3个位置，如 "1m"）
+            age_str = parts[3]
+            age_minutes = parse_age_to_minutes(age_str)
+            
+            # 过滤不活跃会话（超过 max_age_hours 小时）
+            if age_minutes > max_age_minutes:
+                continue
+            
+            # 查找模型名称（在 "ago" 之后的位置，格式如 MiniMax-M2.5, qwen3.5-plus, ernie-4.5-turbo-32k）
+            model = "unknown"
+            found_ago = False
+            for i, part in enumerate(parts[4:], 4):
+                if part == 'ago':
+                    found_ago = True
+                    continue
+                if not found_ago:
+                    continue
+                if part in ['unknown']:
+                    continue
+                # 模型名通常包含连字符或点
+                if '-' in part or '.' in part or part in ['glm', 'kimi', 'ernie', 'step', 'MiniMax', 'qwen']:
+                    model = part
+                    break
+            
+            # 提取 session ID
+            session_id = "..."
+            for part in parts:
+                if part.startswith('id:'):
+                    session_id = part[3:11] + "..."
+                    break
+            
+            model_info.append({
+                "agent": agent_name,
+                "kind": kind,
+                "model": model,
+                "session_id": session_id,
+                "age": age_str,
+                "channel": "unknown",
+                "display_name": key
+            })
+        
+        # 统计模型分布
+        from collections import Counter
+        model_counts = Counter([s["model"] for s in model_info])
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "total": len(model_info),
+                "max_age_hours": max_age_hours,
+                "sessions": model_info,
+                "model_distribution": dict(model_counts)
+            }
+        }
+    
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="CLI timeout")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/restart-gateway")
+def restart_gateway():
+    """重启 OpenClaw Gateway"""
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("Restarting OpenClaw Gateway...")
+        
+        # 执行重启命令
+        result = subprocess.run(
+            ["openclaw", "gateway", "restart"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            logger.info("Gateway restarted successfully")
+            return {
+                "code": 0,
+                "message": "Gateway 重启成功",
+                "data": {"output": result.stdout}
+            }
+        else:
+            logger.error(f"Gateway restart failed: {result.stderr}")
+            return {
+                "code": 500,
+                "message": f"重启失败: {result.stderr}",
+                "data": None
+            }
+    except subprocess.TimeoutExpired:
+        return {"code": 500, "message": "重启超时", "data": None}
+    except Exception as e:
+        return {"code": 500, "message": f"错误: {str(e)}", "data": None}
+
+
 if __name__ == "__main__":
     import uvicorn
     # 启动服务：0.0.0.0:8080
