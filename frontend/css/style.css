@@ -416,6 +416,19 @@ body {
   font-size: 11px;
 }
 
+/* 模型列表头部按钮 */
+.model-list-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.model-list-header .btn {
+  flex: none;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
 /* 底部 */
 .footer {
   text-align: center;

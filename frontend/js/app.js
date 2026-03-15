@@ -219,6 +219,17 @@ function renderModels() {
   // 存储 provider 展开状态
   window.providerExpanded = window.providerExpanded || {};
   
+  // 添加全局展开/收起按钮
+  const allExpanded = Object.values(window.providerExpanded).every(v => v !== false);
+  const headerDiv = document.createElement('div');
+  headerDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px;';
+  headerDiv.innerHTML = `
+    <button class="btn btn-secondary" onclick="toggleAllProviders(${allExpanded ? 'false' : 'true'})">
+      ${allExpanded ? '📥 全部收起' : '📤 全部展开'}
+    </button>
+  `;
+  container.appendChild(headerDiv);
+  
   // 渲染每个 Provider 的模型
   Object.keys(groupedModels).sort().forEach(provider => {
     const providerModels = groupedModels[provider];
@@ -258,6 +269,30 @@ function renderModels() {
     
     container.appendChild(grid);
   });
+}
+
+/**
+ * 一键展开/收起所有 Provider
+ */
+function toggleAllProviders(expand) {
+  // 获取所有 provider
+  const providerTitles = document.querySelectorAll('.provider-title');
+  const modelGrids = document.querySelectorAll('.model-list[data-provider]');
+  
+  providerTitles.forEach((title, index) => {
+    const provider = title.querySelector('strong').textContent;
+    window.providerExpanded[provider] = expand;
+    
+    const arrow = title.querySelector('.arrow');
+    arrow.textContent = expand ? '▼' : '▶';
+    
+    if (modelGrids[index]) {
+      modelGrids[index].style.display = expand ? 'grid' : 'none';
+    }
+  });
+  
+  // 重新渲染以更新按钮文字
+  renderModels();
 }
 
 /**
