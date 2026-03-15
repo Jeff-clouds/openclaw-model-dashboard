@@ -210,11 +210,22 @@ function renderAgents() {
     });
     modelSelectHtml += `</select>`;
     
+    // 提取 workspace 名称（从路径中提取最后一部分）
+    const workspacePath = agent.workspace || '';
+    const workspaceName = workspacePath.split('/').pop() || 'default';
+    
+    // 显示代码名称（id）和 workspace
+    const codeName = agent.id || 'unknown';
+    
     item.innerHTML = `
       <div class="agent-info">
         <span class="agent-emoji">${emoji}</span>
         <div class="agent-details">
           <span class="agent-name">${name}</span>
+          <span class="agent-meta">
+            <span class="agent-code-name">${codeName}</span>
+            <span class="agent-workspace">📁 ${workspaceName}</span>
+          </span>
           <span class="agent-model-label">模型：${displayModel} ${hasChange ? '<span class="change-indicator">●</span>' : ''}</span>
         </div>
       </div>

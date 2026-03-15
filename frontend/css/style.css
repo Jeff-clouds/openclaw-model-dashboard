@@ -429,6 +429,70 @@ body {
   font-size: 13px;
 }
 
+/* Agent 模型选择下拉框 */
+.agent-item {
+  cursor: default;
+}
+
+.agent-model-select-wrapper {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.agent-model-select {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.agent-model-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.agent-model-label {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.agent-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.agent-code-name {
+  background: #667eea;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.agent-workspace {
+  background: #f0f0f0;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.change-indicator {
+  color: #e74c3c;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+/* 保存按钮区域 */
+#saveAllModelsBtn {
+  animation: slideIn 0.3s ease;
+}
+
 /* 底部 */
 .footer {
   text-align: center;
