@@ -120,17 +120,18 @@ body {
 .agent-meta { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .agent-code-name { background: color-mix(in oklab, var(--primary) 14%, transparent); color: var(--primary); border: 1px solid color-mix(in oklab, var(--primary) 30%, var(--border)); padding: 3px 8px; border-radius: 999px; font-size: 12px; }
 .agent-workspace { background: color-mix(in oklab, var(--accent) 12%, transparent); color: var(--text); border: 1px solid color-mix(in oklab, var(--accent) 25%, var(--border)); padding: 3px 8px; border-radius: 999px; font-size: 12px; }
-.agent-model-label { color: var(--text-muted); font-size: 12px; }
-.change-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--warn); vertical-align: middle; margin-left: 6px; }
+.change-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--warn); margin-left: 8px; }
 
-.agent-model-select-wrapper { display: flex; align-items: center; gap: 10px; }
+.agent-model-select-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.agent-model-select-wrapper.full-width { width: 100%; }
 .agent-model-select {
-  min-width: 150px;
-  max-width: 180px;
-  padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel);
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel);
   color: var(--text); font-size: 13px; appearance: none; outline: none;
   background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5' stroke='%236778ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center; background-size: 14px; padding-right: 28px;
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 14px; padding-right: 32px;
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
 .agent-model-select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 25%, transparent); }
 
@@ -142,7 +143,13 @@ body {
 .model-list .model-item:last-child { margin-bottom: 0; }
 .model-list .model-item:hover { transform: translateY(-2px); border-color: color-mix(in oklab, var(--primary) 30%, var(--border)); box-shadow: 0 8px 20px rgba(0,0,0,.08); }
 .model-name { font-weight: 600; font-size: 14px; }
-.model-info { font-size: 11px; margin-top: 4px; }
+.model-id { 
+  font-size: 11px; 
+  color: var(--text-muted); 
+  margin-top: 2px; 
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  word-break: break-all;
+}
 .model-info { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
 .model-tag { display: inline-block; margin-top: 8px; margin-right: 6px; padding: 3px 8px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--text); border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border)); font-size: 11px; font-weight: 600; }
 

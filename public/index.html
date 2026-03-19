@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw 配置管理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #343541;
+      min-height: 100vh;
+      color: #ececf1;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #10a37f;
+    }
+    h2 {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #8e8ea0;
+    }
+    .section {
+      background: #202123;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .agent-item {
+      background: #343541;
+      border-radius: 6px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .agent-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .model-select {
+        min-width: 100%;
+        width: 100%;
+      }
+      .btn {
+        width: 100%;
+      }
+      .container {
+        padding: 12px;
+      }
+      .section {
+        padding: 16px;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 20px;
+      }
+    }
+    .agent-info {
+      flex: 1;
+    }
+    .agent-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .agent-workspace {
+      font-size: 12px;
+      color: #8e8ea0;
+    }
+    .agent-model {
+      font-size: 14px;
+      color: #10a37f;
+      margin-top: 4px;
+    }
+    .model-select {
+      padding: 8px 12px;
+      background: #40414f;
+      border: 1px solid #565869;
+      color: #ececf1;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+    .model-select:focus {
+      outline: none;
+      border-color: #10a37f;
+    }
+    .btn {
+      padding: 8px 16px;
+      background: #10a37f;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #1a7f64;
+    }
+    .btn:disabled {
+      background: #565869;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #40414f;
+      border: 1px solid #565869;
+    }
+    .btn-secondary:hover {
+      background: #565869;
+    }
+    .usage-area {
+      margin-top: 20px;
+    }
+    .usage-result {
+      background: #343541;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .status.success {
+      background: #10a37f;
+      color: #fff;
+    }
+    .status.error {
+      background: #dc3545;
+      color: #fff;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #8e8ea0;
+    }
+    .models-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .provider-group {
+      background: #343541;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .provider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: #40414f;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .provider-header:hover {
+      background: #4a4b59;
+    }
+    .provider-name {
+      font-weight: 600;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provider-count {
+      font-size: 12px;
+      color: #8e8ea0;
+      background: #202123;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .toggle-icon {
+      font-size: 12px;
+      color: #8e8ea0;
+      transition: transform 0.2s;
+    }
+    .provider-content {
+      display: none;
+      padding: 12px 16px;
+    }
+    .provider-content.expanded {
+      display: block;
+    }
+    .model-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #40414f;
+    }
+    .model-item:last-child {
+      border-bottom: none;
+    }
+    .model-info {
+      flex: 1;
+    }
+    .model-id {
+      font-size: 14px;
+      color: #ececf1;
+    }
+    .model-desc {
+      font-size: 12px;
+      color: #8e8ea0;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 OpenClaw 配置管理</h1>
+
+    <div id="status"></div>
+
+    <!-- 快捷操作 -->
+    <div class="section">
+      <h2>快捷操作</h2>
+      <button class="btn" onclick="restartGateway()">🔄 重启 OpenClaw Gateway</button>
+    </div>
+
+    <!-- Agent 列表 -->
+    <div class="section">
+      <h2>Agent 模型配置</h2>
+      <div id="agentList" class="agent-list">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 可用模型列表 -->
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2>可用模型</h2>
+        <button class="btn btn-secondary" id="toggleAllBtn" onclick="toggleAllModels()">全部展开</button>
+      </div>
+      <div id="modelsList" class="models-list">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let agents = [];
+    let allModels = [];
+
+    // 获取 Agent 显示信息（从后端返回的数据读取）
+    function getAgentDisplay(agent) {
+      return {
+        emoji: agent.emoji || '🤖',
+        name: agent.displayName || agent.name || agent.id
+      };
+    }
+
+    // 加载数据
+    async function loadData() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load agents');
+        agents = data.agents;
+        allModels = data.allModels;
+        renderAgents();
+        renderModelsList();
+      } catch (e) {
+        showStatus('加载失败: ' + e.message, 'error');
+      }
+    }
+
+    // 渲染 agent 列表
+    function renderAgents() {
+      const container = document.getElementById('agentList');
+      if (agents.length === 0) {
+        container.innerHTML = '<div style="color:#8e8ea0;">暂无 agent 配置</div>';
+        return;
+      }
+
+      // 按 provider 分组模型选项
+      const modelsByProvider = groupModelsByProvider(allModels);
+      
+      container.innerHTML = agents.map(agent => {
+        const display = getAgentDisplay(agent);
+        return `
+        <div class="agent-item">
+          <div class="agent-info">
+            <div class="agent-name">${display.emoji} ${escapeHtml(display.name)}</div>
+            <div class="agent-workspace">${escapeHtml(agent.workspace)}</div>
+            <div class="agent-model">当前模型: ${escapeHtml(agent.model)}</div>
+          </div>
+          <select class="model-select" id="model-${agent.id}" data-agent-id="${agent.id}">
+            ${Object.entries(modelsByProvider).map(([provider, models]) => `
+              <optgroup label="${escapeHtml(provider)}">
+                ${models.map(m => `
+                  <option value="${escapeHtml(m.id)}" ${m.id === agent.model ? 'selected' : ''}>
+                    ${escapeHtml(m.name)}
+                  </option>
+                `).join('')}
+              </optgroup>
+            `).join('')}
+          </select>
+        </div>
+      `;
+      }).join('') + `
+        <div style="margin-top: 20px; text-align: center;">
+          <button class="btn" onclick="saveAllModels()" style="padding: 12px 32px; font-size: 16px;">
+            💾 保存所有更改
+          </button>
+        </div>
+      `;
+    }
+
+    // 批量保存所有模型更改
+    async function saveAllModels() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+
+      // 收集所有更改
+      const changes = [];
+      agents.forEach(agent => {
+        const select = document.getElementById(`model-${agent.id}`);
+        const newModel = select.value;
+        if (newModel !== agent.model) {
+          changes.push({ agentId: agent.id, model: newModel });
+        }
+      });
+
+      if (changes.length === 0) {
+        showStatus('⚠️ 没有检测到更改', 'error');
+        btn.disabled = false;
+        btn.textContent = '💾 保存所有更改';
+        return;
+      }
+
+      try {
+        // 逐个保存
+        const results = [];
+        for (const change of changes) {
+          const res = await fetch('/api/update-model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(change)
+          });
+          const data = await res.json();
+          results.push({ agentId: change.agentId, success: res.ok, message: data.message || data.error });
+        }
+
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.length - successCount;
+
+        if (failCount === 0) {
+          showStatus(`✅ 成功保存 ${successCount} 个 Agent 的模型更改（请手动重启 Gateway 生效）`, 'success');
+        } else {
+          showStatus(`⚠️ 保存完成：${successCount} 成功，${failCount} 失败`, 'error');
+        }
+
+        // 刷新数据
+        await loadData();
+      } catch (e) {
+        showStatus('❌ 保存失败: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 保存所有更改';
+      }
+    }
+
+    // 重启 Gateway
+    async function restartGateway() {
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '重启中...';
+
+      try {
+        const res = await fetch('/api/restart-gateway', {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restart gateway');
+        
+        showStatus('🔄 Gateway 重启中，请稍候...', 'success');
+        
+        // 轮询检查服务是否恢复
+        let attempts = 0;
+        const maxAttempts = 30;
+        const checkInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const healthRes = await fetch('/api/agents');
+            if (healthRes.ok) {
+              clearInterval(checkInterval);
+              showStatus('✅ Gateway 重启成功！', 'success');
+              // 刷新数据
+              await loadData();
+            }
+          } catch (e) {
+            // 服务还未恢复，继续等待
+          }
+          
+          if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            showStatus('⚠️ 重启超时，请手动刷新页面检查状态', 'error');
+          }
+        }, 1000);
+        
+      } catch (e) {
+        showStatus('❌ 重启失败: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    // 按 provider 分组模型
+    function groupModelsByProvider(models) {
+      const groups = {};
+      models.forEach(model => {
+        const parts = model.split('/');
+        const provider = parts[0] || 'unknown';
+        if (!groups[provider]) {
+          groups[provider] = [];
+        }
+        groups[provider].push({
+          id: model,
+          name: parts.slice(1).join('/') || model
+        });
+      });
+      return groups;
+    }
+
+    // 渲染模型列表
+    function renderModelsList() {
+      const container = document.getElementById('modelsList');
+      if (allModels.length === 0) {
+        container.innerHTML = '<div style="color:#8e8ea0;">暂无可用模型</div>';
+        return;
+      }
+
+      const groups = groupModelsByProvider(allModels);
+      
+      container.innerHTML = Object.entries(groups).map(([provider, models], idx) => `
+        <div class="provider-group">
+          <div class="provider-header" onclick="toggleProvider('${provider}')">
+            <div class="provider-name">
+              <span class="toggle-icon" id="icon-${provider}">▶</span>
+              ${escapeHtml(provider)}
+              <span class="provider-count">${models.length}</span>
+            </div>
+          </div>
+          <div class="provider-content" id="content-${provider}">
+            ${models.map(model => `
+              <div class="model-item">
+                <div class="model-info">
+                  <div class="model-id">${escapeHtml(model.name)}</div>
+                  <div class="model-desc">${escapeHtml(model.id)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 切换 provider 展开/收起
+    function toggleProvider(provider) {
+      const content = document.getElementById(`content-${provider}`);
+      const icon = document.getElementById(`icon-${provider}`);
+      const isExpanded = content.classList.contains('expanded');
+      
+      if (isExpanded) {
+        content.classList.remove('expanded');
+        icon.textContent = '▶';
+      } else {
+        content.classList.add('expanded');
+        icon.textContent = '▼';
+      }
+    }
+
+    // 全局展开/收起
+    let allExpanded = false;
+    function toggleAllModels() {
+      allExpanded = !allExpanded;
+      const btn = document.getElementById('toggleAllBtn');
+      btn.textContent = allExpanded ? '全部收起' : '全部展开';
+      
+      const groups = groupModelsByProvider(allModels);
+      Object.keys(groups).forEach(provider => {
+        const content = document.getElementById(`content-${provider}`);
+        const icon = document.getElementById(`icon-${provider}`);
+        
+        if (allExpanded) {
+          content.classList.add('expanded');
+          icon.textContent = '▼';
+        } else {
+          content.classList.remove('expanded');
+          icon.textContent = '▶';
+        }
+      });
+    }
+
+    // 显示状态消息
+    function showStatus(msg, type) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = msg;
+      statusDiv.className = 'status ' + type;
+      setTimeout(() => {
+        statusDiv.textContent = '';
+        statusDiv.className = 'status';
+      }, 5000);
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 初始化
+    loadData();
+  </script>
+</body>
+</html>

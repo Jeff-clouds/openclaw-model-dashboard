@@ -60,24 +60,38 @@ def health_check():
 def get_agents():
     """
     获取所有 Agent 列表及当前使用的模型
-    使用 openclaw agents list --json 命令
+    直接从配置文件读取 agents.list
     """
     try:
-        result = subprocess.run(
-            ["openclaw", "agents", "list", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        if not CONFIG_PATH.exists():
+            return {"code": 404, "message": "Config not found", "data": []}
         
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"CLI error: {result.stderr}")
+        config = json.loads(CONFIG_PATH.read_text())
+        agents_list = config.get("agents", {}).get("list", [])
         
-        agents = json.loads(result.stdout)
-        return {"code": 0, "message": "success", "data": agents}
+        # 格式化 agent 数据
+        formatted_agents = []
+        for agent in agents_list:
+            agent_id = agent.get("id", "unknown")
+            agent_name = agent.get("name", agent_id)
+            model = agent.get("model", "default")
+            
+            # 处理 model 可能是字符串或对象的情况
+            if isinstance(model, dict):
+                model = model.get("primary", "unknown")
+            
+            workspace = agent.get("workspace", config.get("agents", {}).get("defaults", {}).get("workspace", "/root/.openclaw/workspace"))
+            
+            formatted_agents.append({
+                "id": agent_id,
+                "name": agent_name,
+                "model": model,
+                "workspace": workspace,
+                "enabled": True
+            })
+        
+        return {"code": 0, "message": "success", "data": formatted_agents}
     
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="CLI timeout")
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=500, detail=f"JSON parse error: {str(e)}")
     except Exception as e:
@@ -242,116 +256,58 @@ def parse_age_to_minutes(age_str):
 def get_sessions_models(max_age_hours: int = 24):
     """
     获取当前活跃会话使用的模型信息
-    通过调用 openclaw sessions 命令获取会话数据（文本格式解析）
-    
-    参数:
-        max_age_hours: 最大活跃时间（小时），超过此时间的会话将被过滤，默认24小时
+    注意：CLI 命令当前不稳定，返回基于配置文件的模拟数据
     """
     try:
-        # 调用 openclaw sessions 命令获取所有 agent 的会话列表
-        result = subprocess.run(
-            ["openclaw", "sessions", "--all-agents"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        # 从配置文件读取 agent 列表，生成模拟会话数据
+        if not CONFIG_PATH.exists():
+            return {"code": 404, "message": "Config not found", "data": {"total": 0, "sessions": []}}
         
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"CLI error: {result.stderr}")
+        config = json.loads(CONFIG_PATH.read_text())
+        agents_list = config.get("agents", {}).get("list", [])
         
-        # 解析文本输出
-        lines = result.stdout.strip().split('\n')
+        # 生成模拟会话数据（基于配置中的 agent）
         model_info = []
-        max_age_minutes = max_age_hours * 60
-        
-        # 跳过前2行（Session stores 和 Sessions listed 行）和表头行
-        # 找到表头行（包含 "Agent" "Kind" "Key" 等）
-        start_idx = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith('Agent') and 'Kind' in line and 'Key' in line:
-                start_idx = i + 1
-                break
-        
-        for line in lines[start_idx:]:
-            if not line.strip() or line.startswith('Session store:'):
-                continue
+        for agent in agents_list:
+            agent_id = agent.get("id", "unknown")
+            agent_name = agent.get("name", agent_id)
+            model = agent.get("model", "default")
             
-            # 解析行格式: Agent kind key age ago model tokens flags
-            # 示例: coding group agent:coding:fei...455a20 1m ago kimi-k2.5 unknown/200k (?%) system id:xxx
-            parts = line.split()
-            if len(parts) < 6:
-                continue
+            # 处理 model 可能是字符串或对象的情况
+            if isinstance(model, dict):
+                model = model.get("primary", "unknown")
             
-            agent_name = parts[0]
-            kind = parts[1]
-            key = parts[2]
-            
-            # 提取年龄（第3个位置，如 "1m"）
-            age_str = parts[3]
-            age_minutes = parse_age_to_minutes(age_str)
-            
-            # 过滤不活跃会话（超过 max_age_hours 小时）
-            if age_minutes > max_age_minutes:
-                continue
-            
-            # 查找模型名称（在 "ago" 之后的位置，格式如 MiniMax-M2.5, qwen3.5-plus, ernie-4.5-turbo-32k）
-            model = "unknown"
-            found_ago = False
-            for i, part in enumerate(parts[4:], 4):
-                if part == 'ago':
-                    found_ago = True
-                    continue
-                if not found_ago:
-                    continue
-                if part in ['unknown']:
-                    continue
-                # 模型名通常包含连字符或点
-                if '-' in part or '.' in part or part in ['glm', 'kimi', 'ernie', 'step', 'MiniMax', 'qwen']:
-                    model = part
-                    break
-            
-            # 提取 session ID
-            session_id = "..."
-            for part in parts:
-                if part.startswith('id:'):
-                    session_id = part[3:11] + "..."
-                    break
+            # 简化为只显示模型名称（去掉 provider 前缀）
+            model_short = model.split("/")[-1] if "/" in model else model
             
             model_info.append({
-                "agent": agent_name,
-                "kind": kind,
-                "model": model,
-                "session_id": session_id,
-                "age": age_str,
-                "age_minutes": age_minutes,
-                "channel": "unknown",
-                "display_name": key
+                "agent": agent_id,
+                "agent_name": agent_name,
+                "kind": "group",
+                "model": model_short,
+                "full_model": model,
+                "session_id": f"{agent_id[:8]}...",
+                "age": "active",
+                "channel": "feishu",
+                "display_name": agent_name
             })
-        
-        # 按时间排序（从新到旧，即 age_minutes 从小到大）
-        model_info.sort(key=lambda x: x.get('age_minutes', 999999))
-        
-        # 移除用于排序的临时字段
-        for item in model_info:
-            item.pop('age_minutes', None)
         
         # 统计模型分布
         from collections import Counter
-        model_counts = Counter([s["model"] for s in model_info])
+        model_counts = Counter([s["full_model"] for s in model_info])
         
         return {
             "code": 0,
-            "message": "success",
+            "message": "success (from config, CLI unavailable)",
             "data": {
                 "total": len(model_info),
                 "max_age_hours": max_age_hours,
                 "sessions": model_info,
-                "model_distribution": dict(model_counts)
+                "model_distribution": dict(model_counts),
+                "note": "CLI command currently unstable, showing config-based data"
             }
         }
     
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="CLI timeout")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

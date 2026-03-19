@@ -245,11 +245,9 @@ function renderAgents() {
               <span class="agent-workspace">📁 ${workspaceName}</span>
             </span>
           </div>
-          <div class="agent-model-row">
-            <span class="agent-model-label">模型：${displayModel} ${hasChange ? '<span class="change-indicator">●</span>' : ''}</span>
-            <div class="agent-model-select-wrapper">
-              ${modelSelectHtml}
-            </div>
+          <div class="agent-model-select-wrapper full-width">
+            ${modelSelectHtml}
+            ${hasChange ? '<span class="change-indicator">●</span>' : ''}
           </div>
         </div>
       </div>
@@ -443,6 +441,7 @@ function renderModels() {
       
       item.innerHTML = `
         <div class="model-name">${model.name}</div>
+        <div class="model-id">${model.key}</div>
         <div class="model-info">
           ${model.contextWindow ? '上下文：' + (model.contextWindow / 1000).toFixed(0) + 'K' : ''}
         </div>
