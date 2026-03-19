@@ -284,66 +284,79 @@ def get_sessions_models(max_age_hours: int = 24):
                 "display_name": agent_name,
             }
 
-        # Try the correct CLI command: openclaw sessions --json
+        # Parse ageMs to human readable format
+        def format_age(age_ms):
+            if age_ms is None:
+                return "unknown"
+            minutes = age_ms // 60000
+            if minutes < 60:
+                return f"{minutes}m"
+            hours = minutes // 60
+            if hours < 24:
+                return f"{hours}h"
+            days = hours // 24
+            return f"{days}d"
+
+        # Try to get sessions from all agents by reading their sessions.json files
         try:
-            result = subprocess.run(["openclaw", "sessions", "--json"], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                payload = json.loads(result.stdout or "{}")
-                items = payload.get("sessions", [])
-                if items:
-                    # Parse ageMs to human readable format
-                    def format_age(age_ms):
-                        if age_ms is None:
-                            return "unknown"
-                        minutes = age_ms // 60000
-                        if minutes < 60:
-                            return f"{minutes}m"
-                        hours = minutes // 60
-                        if hours < 24:
-                            return f"{hours}h"
-                        days = hours // 24
-                        return f"{days}d"
-
-                    # Map CLI format to our format
-                    for item in items:
-                        if not isinstance(item, dict):
+            agents_dir = Path.home() / ".openclaw" / "agents"
+            if agents_dir.exists():
+                for agent_dir in agents_dir.iterdir():
+                    if not agent_dir.is_dir():
+                        continue
+                    sessions_file = agent_dir / "sessions" / "sessions.json"
+                    if not sessions_file.exists():
+                        continue
+                    try:
+                        sessions_data = json.loads(sessions_file.read_text())
+                        if not isinstance(sessions_data, dict):
                             continue
-                        agent_id = item.get("agentId", "unknown")
-                        kind = item.get("kind", "other")
-                        model = item.get("model", "default")
-                        provider = item.get("modelProvider", "")
-                        full_model = f"{provider}/{model}" if provider else model
-                        session_id = item.get("sessionId", "unknown")
-                        age_ms = item.get("ageMs")
-                        age = format_age(age_ms) if age_ms is not None else "unknown"
+                        for key, session in sessions_data.items():
+                            if not isinstance(session, dict):
+                                continue
+                            agent_id = session.get("agentId") or agent_dir.name
+                            kind = session.get("chatType") or session.get("kind") or "other"
+                            # Get model from session or fallback to config
+                            model = session.get("model", "unknown")
+                            provider = session.get("modelProvider", "")
+                            full_model = f"{provider}/{model}" if provider and model else model or "unknown"
+                            session_id = session.get("sessionId", "unknown")
+                            # Calculate age from updatedAt
+                            updated_at = session.get("updatedAt")
+                            if updated_at:
+                                age_ms = int((__import__('time').time() * 1000) - updated_at)
+                                age = format_age(age_ms)
+                            else:
+                                age = "unknown"
 
-                        # Extract channel from key (e.g., "agent:main:feishu:direct:...")
-                        key = item.get("key", "")
-                        channel = "feishu"
-                        if ":feishu:" in key:
+                            # Extract channel from key
                             channel = "feishu"
-                        elif ":lightclawbot:" in key:
-                            channel = "lightclawbot"
-                        elif ":telegram:" in key:
-                            channel = "telegram"
-                        elif ":discord:" in key:
-                            channel = "discord"
+                            if ":feishu:" in key:
+                                channel = "feishu"
+                            elif ":lightclawbot:" in key:
+                                channel = "lightclawbot"
+                            elif ":telegram:" in key:
+                                channel = "telegram"
+                            elif ":discord:" in key:
+                                channel = "discord"
+                            elif ":qqbot:" in key:
+                                channel = "qqbot"
 
-                        model_info.append({
-                            "agent": agent_id,
-                            "agent_name": agent_id,
-                            "kind": kind,
-                            "model": model,
-                            "full_model": full_model,
-                            "session_id": session_id[:8] + "..." if len(session_id) > 8 else session_id,
-                            "age": age,
-                            "channel": channel,
-                            "display_name": agent_id,
-                        })
-            else:
-                cli_errors.append(f"openclaw sessions --json: {result.stderr.strip() or 'non-zero exit'}")
+                            model_info.append({
+                                "agent": agent_id,
+                                "agent_name": agent_id,
+                                "kind": kind,
+                                "model": model,
+                                "full_model": full_model,
+                                "session_id": session_id[:8] + "..." if len(session_id) > 8 else session_id,
+                                "age": age,
+                                "channel": channel,
+                                "display_name": agent_id,
+                            })
+                    except Exception as e:
+                        cli_errors.append(f"Error reading {sessions_file}: {e}")
         except Exception as e:
-            cli_errors.append(f"openclaw sessions --json: {e}")
+            cli_errors.append(f"Error scanning agents directory: {e}")
 
         if not model_info:
             if not CONFIG_PATH.exists():
