@@ -90,6 +90,9 @@ def get_agents():
                 "enabled": True
             })
         
+        # 按 workspace 排序，相同 workspace 的排在一起
+        formatted_agents.sort(key=lambda x: x["workspace"])
+        
         return {"code": 0, "message": "success", "data": formatted_agents}
     
     except json.JSONDecodeError as e:
