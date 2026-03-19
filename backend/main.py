@@ -284,27 +284,66 @@ def get_sessions_models(max_age_hours: int = 24):
                 "display_name": agent_name,
             }
 
-        cli_cmds = [
-            ["openclaw", "sessions", "list", "--json"],
-            ["openclaw", "session", "list", "--json"],
-            ["openclaw", "sessions", "active", "--json"],
-        ]
-        for cmd in cli_cmds:
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-                if result.returncode != 0:
-                    cli_errors.append(f"{' '.join(cmd)}: {result.stderr.strip() or 'non-zero exit'}")
-                    continue
+        # Try the correct CLI command: openclaw sessions --json
+        try:
+            result = subprocess.run(["openclaw", "sessions", "--json"], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
                 payload = json.loads(result.stdout or "{}")
-                items = payload.get("sessions") or payload.get("data") or payload.get("items") or []
-                if isinstance(items, dict):
-                    items = items.get("sessions") or items.get("items") or []
+                items = payload.get("sessions", [])
                 if items:
-                    model_info = [normalize_session(i) for i in items if isinstance(i, dict)]
-                    if model_info:
-                        break
-            except Exception as e:
-                cli_errors.append(f"{' '.join(cmd)}: {e}")
+                    # Parse ageMs to human readable format
+                    def format_age(age_ms):
+                        if age_ms is None:
+                            return "unknown"
+                        minutes = age_ms // 60000
+                        if minutes < 60:
+                            return f"{minutes}m"
+                        hours = minutes // 60
+                        if hours < 24:
+                            return f"{hours}h"
+                        days = hours // 24
+                        return f"{days}d"
+
+                    # Map CLI format to our format
+                    for item in items:
+                        if not isinstance(item, dict):
+                            continue
+                        agent_id = item.get("agentId", "unknown")
+                        kind = item.get("kind", "other")
+                        model = item.get("model", "default")
+                        provider = item.get("modelProvider", "")
+                        full_model = f"{provider}/{model}" if provider else model
+                        session_id = item.get("sessionId", "unknown")
+                        age_ms = item.get("ageMs")
+                        age = format_age(age_ms) if age_ms is not None else "unknown"
+
+                        # Extract channel from key (e.g., "agent:main:feishu:direct:...")
+                        key = item.get("key", "")
+                        channel = "feishu"
+                        if ":feishu:" in key:
+                            channel = "feishu"
+                        elif ":lightclawbot:" in key:
+                            channel = "lightclawbot"
+                        elif ":telegram:" in key:
+                            channel = "telegram"
+                        elif ":discord:" in key:
+                            channel = "discord"
+
+                        model_info.append({
+                            "agent": agent_id,
+                            "agent_name": agent_id,
+                            "kind": kind,
+                            "model": model,
+                            "full_model": full_model,
+                            "session_id": session_id[:8] + "..." if len(session_id) > 8 else session_id,
+                            "age": age,
+                            "channel": channel,
+                            "display_name": agent_id,
+                        })
+            else:
+                cli_errors.append(f"openclaw sessions --json: {result.stderr.strip() or 'non-zero exit'}")
+        except Exception as e:
+            cli_errors.append(f"openclaw sessions --json: {e}")
 
         if not model_info:
             if not CONFIG_PATH.exists():
