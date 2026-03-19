@@ -256,58 +256,97 @@ def parse_age_to_minutes(age_str):
 def get_sessions_models(max_age_hours: int = 24):
     """
     获取当前活跃会话使用的模型信息
-    注意：CLI 命令当前不稳定，返回基于配置文件的模拟数据
+    优先读取 CLI 的真实会话信息；CLI 不可用时回退到配置文件。
     """
     try:
-        # 从配置文件读取 agent 列表，生成模拟会话数据
-        if not CONFIG_PATH.exists():
-            return {"code": 404, "message": "Config not found", "data": {"total": 0, "sessions": []}}
-        
-        config = json.loads(CONFIG_PATH.read_text())
-        agents_list = config.get("agents", {}).get("list", [])
-        
-        # 生成模拟会话数据（基于配置中的 agent）
         model_info = []
-        for agent in agents_list:
-            agent_id = agent.get("id", "unknown")
-            agent_name = agent.get("name", agent_id)
-            model = agent.get("model", "default")
-            
-            # 处理 model 可能是字符串或对象的情况
-            if isinstance(model, dict):
-                model = model.get("primary", "unknown")
-            
-            # 简化为只显示模型名称（去掉 provider 前缀）
-            model_short = model.split("/")[-1] if "/" in model else model
-            
-            model_info.append({
+        cli_errors = []
+
+        def normalize_session(item: dict):
+            session_id = item.get("session_id") or item.get("id") or item.get("sessionId") or "unknown"
+            kind = item.get("kind") or item.get("chat_type") or item.get("channel_type") or "other"
+            agent_id = item.get("agent") or item.get("agent_id") or item.get("name") or item.get("display_name") or session_id
+            agent_name = item.get("agent_name") or item.get("display_name") or item.get("name") or agent_id
+            full_model = item.get("full_model") or item.get("model") or item.get("model_id") or "default"
+            if isinstance(full_model, dict):
+                full_model = full_model.get("primary", full_model.get("id", "unknown"))
+            model_short = full_model.split("/")[-1] if isinstance(full_model, str) and "/" in full_model else full_model
+            age = item.get("age") or item.get("age_str") or item.get("last_seen") or "active"
+            return {
                 "agent": agent_id,
                 "agent_name": agent_name,
-                "kind": "group",
+                "kind": kind,
                 "model": model_short,
-                "full_model": model,
-                "session_id": f"{agent_id[:8]}...",
-                "age": "active",
-                "channel": "feishu",
-                "display_name": agent_name
-            })
-        
-        # 统计模型分布
+                "full_model": full_model,
+                "session_id": session_id,
+                "age": age,
+                "channel": item.get("channel", "feishu"),
+                "display_name": agent_name,
+            }
+
+        cli_cmds = [
+            ["openclaw", "sessions", "list", "--json"],
+            ["openclaw", "session", "list", "--json"],
+            ["openclaw", "sessions", "active", "--json"],
+        ]
+        for cmd in cli_cmds:
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    cli_errors.append(f"{' '.join(cmd)}: {result.stderr.strip() or 'non-zero exit'}")
+                    continue
+                payload = json.loads(result.stdout or "{}")
+                items = payload.get("sessions") or payload.get("data") or payload.get("items") or []
+                if isinstance(items, dict):
+                    items = items.get("sessions") or items.get("items") or []
+                if items:
+                    model_info = [normalize_session(i) for i in items if isinstance(i, dict)]
+                    if model_info:
+                        break
+            except Exception as e:
+                cli_errors.append(f"{' '.join(cmd)}: {e}")
+
+        if not model_info:
+            if not CONFIG_PATH.exists():
+                return {"code": 404, "message": "Config not found", "data": {"total": 0, "sessions": []}}
+
+            config = json.loads(CONFIG_PATH.read_text())
+            agents_list = config.get("agents", {}).get("list", [])
+            for agent in agents_list:
+                agent_id = agent.get("id", "unknown")
+                agent_name = agent.get("name", agent_id)
+                model = agent.get("model", "default")
+                if isinstance(model, dict):
+                    model = model.get("primary", "unknown")
+                model_short = model.split("/")[-1] if isinstance(model, str) and "/" in model else model
+                model_info.append({
+                    "agent": agent_id,
+                    "agent_name": agent_name,
+                    "kind": "other",
+                    "model": model_short,
+                    "full_model": model,
+                    "session_id": "n/a",
+                    "age": "config",
+                    "channel": "feishu",
+                    "display_name": agent_name,
+                })
+
         from collections import Counter
         model_counts = Counter([s["full_model"] for s in model_info])
-        
+
         return {
             "code": 0,
-            "message": "success (from config, CLI unavailable)",
+            "message": "success",
             "data": {
                 "total": len(model_info),
                 "max_age_hours": max_age_hours,
                 "sessions": model_info,
                 "model_distribution": dict(model_counts),
-                "note": "CLI command currently unstable, showing config-based data"
+                "note": "CLI preferred; config fallback used if CLI unavailable",
+                "cli_errors": cli_errors,
             }
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
