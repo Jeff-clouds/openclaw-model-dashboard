@@ -191,6 +191,32 @@ app.get('/api/usage', async (req, res) => {
   }
 });
 
+// API: 重启 Gateway
+app.post('/api/restart-gateway', async (req, res) => {
+  try {
+    // 先返回响应，避免超时
+    res.json({
+      code: 0,
+      message: 'Gateway 重启指令已发送，请稍后刷新页面查看状态',
+      data: { success: true }
+    });
+    
+    // 异步执行重启（不阻塞响应）
+    exec(GATEWAY_RESTART_CMD, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Gateway 重启失败:', stderr || error.message);
+      } else {
+        console.log('Gateway 重启成功:', stdout);
+      }
+    });
+  } catch (e) {
+    res.status(500).json({
+      code: -1,
+      message: e.message || '重启失败'
+    });
+  }
+});
+
 // API: 获取当前配置信息
 app.get('/api/config', (req, res) => {
   try {

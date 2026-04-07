@@ -665,13 +665,16 @@ async function restartGateway() {
     const data = await response.json();
     
     if (data.code === 0) {
-      showSuccess('✅ Gateway 重启成功！新配置已生效');
+      showSuccess('✅ Gateway 重启指令已发送，请稍后刷新页面查看状态');
+      showMain();
     } else {
       showError(data.message || '重启失败');
+      // 错误时显示主内容，但错误提示会保留
+      document.getElementById('main').style.display = 'block';
     }
   } catch (error) {
     showError('重启请求失败: ' + error.message);
-  } finally {
-    showMain();
+    // 错误时显示主内容，但错误提示会保留
+    document.getElementById('main').style.display = 'block';
   }
 }

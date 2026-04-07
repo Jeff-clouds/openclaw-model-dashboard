@@ -399,30 +399,15 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to restart gateway');
         
-        showStatus('🔄 Gateway 重启中，请稍候...', 'success');
+        // 显示后端返回的消息，并提示用户刷新页面
+        showStatus(data.message || '🔄 Gateway 正在重启，请稍后刷新页面...', 'success');
         
-        // 轮询检查服务是否恢复
-        let attempts = 0;
-        const maxAttempts = 30;
-        const checkInterval = setInterval(async () => {
-          attempts++;
-          try {
-            const healthRes = await fetch('/api/agents');
-            if (healthRes.ok) {
-              clearInterval(checkInterval);
-              showStatus('✅ Gateway 重启成功！', 'success');
-              // 刷新数据
-              await loadData();
-            }
-          } catch (e) {
-            // 服务还未恢复，继续等待
-          }
-          
-          if (attempts >= maxAttempts) {
-            clearInterval(checkInterval);
-            showStatus('⚠️ 重启超时，请手动刷新页面检查状态', 'error');
-          }
-        }, 1000);
+        // 等待 10 秒后自动刷新页面
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+        // 刷新数据
+        await loadData();
+        showStatus('✅ Gateway 重启完成！', 'success');
         
       } catch (e) {
         showStatus('❌ 重启失败: ' + e.message, 'error');

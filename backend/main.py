@@ -414,30 +414,34 @@ def restart_gateway():
         logger = logging.getLogger(__name__)
         logger.info("Restarting OpenClaw Gateway...")
         
-        # 执行重启命令
-        result = subprocess.run(
-            ["openclaw", "gateway", "restart"],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        # 异步执行重启命令，立即返回响应
+        import threading
+        def do_restart():
+            try:
+                result = subprocess.run(
+                    ["openclaw", "gateway", "restart"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                if result.returncode == 0:
+                    logger.info("Gateway restarted successfully")
+                else:
+                    logger.error(f"Gateway restart failed: {result.stderr}")
+            except Exception as e:
+                logger.error(f"Gateway restart error: {e}")
         
-        if result.returncode == 0:
-            logger.info("Gateway restarted successfully")
-            return {
-                "code": 0,
-                "message": "Gateway 重启成功",
-                "data": {"output": result.stdout}
-            }
-        else:
-            logger.error(f"Gateway restart failed: {result.stderr}")
-            return {
-                "code": 500,
-                "message": f"重启失败: {result.stderr}",
-                "data": None
-            }
-    except subprocess.TimeoutExpired:
-        return {"code": 500, "message": "重启超时", "data": None}
+        # 启动后台线程执行重启
+        thread = threading.Thread(target=do_restart)
+        thread.daemon = True
+        thread.start()
+        
+        # 返回提示用户等待的消息
+        return {
+            "code": 0,
+            "message": "🔄 Gateway 正在重启，预计需要 10-15 秒，请稍后刷新页面查看状态",
+            "data": {"success": True}
+        }
     except Exception as e:
         return {"code": 500, "message": f"错误: {str(e)}", "data": None}
 
